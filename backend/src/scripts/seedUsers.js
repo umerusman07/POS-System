@@ -65,9 +65,8 @@ const seedUsers = async () => {
 
     console.log('\n✅ Seed completed!');
     console.log('\n📝 Test credentials:');
-    console.log('   Super User (Manager) - Email: okay@pos.com, Password: okay123');
+    console.log('   Manager - Email: admin@addiction.com, Password: addiction123');
     console.log('   Regular User - Email: user@restaurant.com, Password: user123');
-    console.log('   Inactive User - Email: inactive@restaurant.com, Password: inactive123 (should be denied)');
     console.log('\n');
   } catch (error) {
     console.error('❌ Seed error:', error);
