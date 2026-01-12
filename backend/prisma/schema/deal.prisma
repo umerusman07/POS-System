@@ -1,0 +1,15 @@
+model Deal {
+  id              String     @id @default(uuid())
+  name            String     @db.VarChar(120)
+  referenceNumber String     @unique @db.VarChar(30)
+  description     String?    @db.Text
+  price           Decimal    @db.Decimal(10, 2)
+  isActive        Boolean    @default(true)
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  dealItems DealItem[]
+
+  @@map("deals")
+}
+

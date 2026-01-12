@@ -1,0 +1,15 @@
+model DealItem {
+  id          String   @id @default(uuid())
+  dealId      String   @map("deal_id")
+  menuItemId  String   @map("menu_item_id")
+  quantity    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  deal     Deal     @relation(fields: [dealId], references: [id], onDelete: Cascade)
+  menuItem MenuItem @relation(fields: [menuItemId], references: [id], onDelete: Cascade)
+
+  @@unique([dealId, menuItemId])
+  @@map("deal_items")
+}
+

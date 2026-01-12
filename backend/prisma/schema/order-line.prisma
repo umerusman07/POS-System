@@ -1,0 +1,22 @@
+enum ProductType {
+  ITEM
+  DEAL
+}
+
+model OrderLine {
+  id              String      @id @default(uuid())
+  orderId         String      @map("order_id")
+  productType     ProductType @map("product_type")
+  productId       String      @map("product_id")
+  nameAtSale      String      @db.VarChar(120) @map("name_at_sale")
+  unitPriceAtSale Decimal     @db.Decimal(10, 2) @map("unit_price_at_sale")
+  quantity        Int
+  lineTotal       Decimal     @db.Decimal(10, 2) @map("line_total")
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+
+  order Order @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@map("order_lines")
+}
+

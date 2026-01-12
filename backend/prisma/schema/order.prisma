@@ -1,0 +1,25 @@
+model Order {
+  id                String        @id @default(uuid())
+  orderNumber       String        @unique @db.VarChar(30) @map("order_number")
+  orderType         OrderType     @map("order_type")
+  status            OrderStatus   @default(DRAFT)
+  paymentMethod     PaymentMethod? @map("payment_method")
+  paymentStatus     PaymentStatus @default(UNPAID) @map("payment_status")
+  customerName      String?       @db.VarChar(100) @map("customer_name")
+  customerPhone     String?       @db.VarChar(30) @map("customer_phone")
+  customerAddress   String?       @db.Text @map("customer_address")
+  subtotal          Decimal       @db.Decimal(10, 2) @default(0)
+  deliveryCharges   Decimal       @db.Decimal(10, 2) @default(0) @map("delivery_charges")
+  discount          Decimal       @db.Decimal(10, 2) @default(0)
+  printedAt         DateTime?     @map("printed_at")
+  printCount        Int           @default(0) @map("print_count")
+  createdByUserId   String        @map("created_by_user_id")
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  createdByUser User       @relation(fields: [createdByUserId], references: [id])
+  orderLines    OrderLine[]
+
+  @@map("orders")
+}
+
