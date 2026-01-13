@@ -438,6 +438,199 @@ export function PunchPanel({ setActiveTab }: PunchPanelProps) {
     }
   }
 
+  // Print cafe receipt function (kitchen receipt - no prices, only items and quantities)
+  const printCafeReceipt = (order: Order) => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=400,height=600')
+    if (!printWindow) {
+      toast({
+        title: "Error",
+        description: "Please allow popups to print receipt",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Format date and time
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })
+    const timeStr = now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
+
+    // Build cafe receipt HTML (simplified - no prices)
+    const receiptHTML = `
+  <!DOCTYPE html>
+<html>
+<head>
+  <title>Cafe Receipt - ${order.orderNumber}</title>
+
+  <style>
+    @media print {
+      @page {
+        size: 80mm auto;
+        margin: 3mm;
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      line-height: 1.25;
+      width: 72mm;
+      margin: 0 auto;
+      padding: 4px;
+      color: #000;
+      background: #fff;
+    }
+
+    .center { text-align: center; }
+    .bold { font-weight: 700; }
+
+    .dash {
+      border-top: 1px dashed #000;
+      margin: 5px 0;
+    }
+
+    h1 {
+      font-size: 13px;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+
+    .subtext {
+      font-size: 9.5px;
+      line-height: 1.2;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+      gap: 6px;
+    }
+
+    .left {
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .right {
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    thead th {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 0;
+      border-bottom: 1px dashed #000;
+    }
+
+    tbody td {
+      padding: 2px 0;
+      vertical-align: top;
+    }
+
+    .col-item { width: 70%; }
+    .col-qty { width: 30%; text-align: right; }
+
+    .item-name {
+      font-weight: 700;
+      font-size: 10px;
+      line-height: 1.15;
+    }
+
+    .footer { margin-top: 6px; font-size: 10px; }
+  </style>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <div class="center">
+  <h1>ADDICTION PIZZA KITCHEN</h1>
+  <div class="subtext">CAFE RECEIPT</div>
+</div>
+
+  <div class="dash"></div>
+
+  <!-- ORDER NUMBER + DATE/TIME -->
+  <div class="row">
+    <div class="left"><span class="bold">Order # ${order.orderNumber}</span></div>
+    <div class="right">${dateStr} ${timeStr}</div>
+  </div>
+
+  <!-- ORDER TYPE (CENTER + BOLD) -->
+  <div class="center bold" style="margin: 4px 0 2px 0;">
+    ${order.orderType || 'DELIVERY'}
+  </div>
+
+  <div class="dash"></div>
+
+  <!-- ITEMS START (NO PRICES) -->
+  <table>
+    <thead>
+      <tr>
+        <th class="col-item" style="text-align:left;">Item</th>
+        <th class="col-qty">Qty</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      ${order.orderLines.map((line:any) => `
+      <tr>
+        <td class="col-item">
+          <div class="item-name">${line.nameAtSale}</div>
+        </td>
+        <td class="col-qty">${line.quantity}</td>
+      </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="dash"></div>
+
+  <div class="footer center">
+    <p>Kitchen Copy</p>
+  </div>
+
+</body>
+</html>
+
+
+    `
+
+    // Write content and print
+    printWindow.document.write(receiptHTML)
+    printWindow.document.close()
+    
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print()
+        // Close window after printing (optional - you can remove this if you want to keep it open)
+        setTimeout(() => {
+          printWindow.close()
+        }, 100)
+      }, 250)
+    }
+  }
+
   // Map frontend payment method to backend payment method
   const mapPaymentMethod = (method: PaymentMethod): ApiPaymentMethod | null => {
     if (method === "CASH") return "CASH"
@@ -488,18 +681,23 @@ export function PunchPanel({ setActiveTab }: PunchPanelProps) {
 
       const createdOrder = await createOrder(orderData)
 
-      // If status is PREPARING, update the order status and print receipt
+      // If status is PREPARING, update the order status and print both receipts
       if (status === "PREPARING") {
         const { updateOrderStatus } = await import("@/lib/api/orders")
         const updatedOrder = await updateOrderStatus(createdOrder.id, "PREPARING")
         
-        // Print the receipt
+        // Print customer receipt first
         printReceipt(updatedOrder)
+        
+        // Print cafe receipt after a short delay (so they print one after another)
+        setTimeout(() => {
+          printCafeReceipt(updatedOrder)
+        }, 500)
         
         // Show success popup
         toast({
           title: "Order Printed",
-          description: `Receipt for Order ${updatedOrder.orderNumber} has been printed. Order is now in PREPARING status.`,
+          description: `Both receipts for Order ${updatedOrder.orderNumber} have been printed. Order is now in PREPARING status.`,
           duration: 3000,
         })
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useCallback } from "react"
-import { Search, Filter, Eye, ChevronRight, ChevronLeft, Loader2, RefreshCw, X, Edit, Plus, Minus, Trash2, Utensils, CreditCard, DollarSign, User } from "lucide-react"
+import { Search, Filter, Eye, ChevronRight, ChevronLeft, Loader2, RefreshCw, X, Edit, Plus, Minus, Trash2, Utensils, CreditCard, DollarSign, User, Printer } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -1227,6 +1227,199 @@ export function OrdersPanel({ userRole = "user" }: OrdersPanelProps) {
     }
   }
 
+  // Print cafe receipt function (kitchen receipt - no prices, only items and quantities)
+  const printCafeReceipt = (order: ApiOrder) => {
+    // Create a new window for printing
+    const printWindow = window.open('', '_blank', 'width=400,height=600')
+    if (!printWindow) {
+      toast({
+        title: "Error",
+        description: "Please allow popups to print receipt",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Format date and time
+    const now = new Date()
+    const dateStr = now.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })
+    const timeStr = now.toLocaleTimeString('en-US', { 
+      hour: '2-digit', 
+      minute: '2-digit' 
+    })
+
+    // Build cafe receipt HTML (simplified - no prices)
+    const receiptHTML = `
+  <!DOCTYPE html>
+<html>
+<head>
+  <title>Cafe Receipt - ${order.orderNumber}</title>
+
+  <style>
+    @media print {
+      @page {
+        size: 80mm auto;
+        margin: 3mm;
+      }
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: "Courier New", monospace;
+      font-size: 10px;
+      line-height: 1.25;
+      width: 72mm;
+      margin: 0 auto;
+      padding: 4px;
+      color: #000;
+      background: #fff;
+    }
+
+    .center { text-align: center; }
+    .bold { font-weight: 700; }
+
+    .dash {
+      border-top: 1px dashed #000;
+      margin: 5px 0;
+    }
+
+    h1 {
+      font-size: 13px;
+      letter-spacing: 1px;
+      margin-bottom: 2px;
+    }
+
+    .subtext {
+      font-size: 9.5px;
+      line-height: 1.2;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      margin-bottom: 2px;
+      gap: 6px;
+    }
+
+    .left {
+      flex: 1;
+      min-width: 0;
+      word-break: break-word;
+    }
+
+    .right {
+      white-space: nowrap;
+      text-align: right;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      table-layout: fixed;
+    }
+
+    thead th {
+      font-size: 9.5px;
+      font-weight: 700;
+      padding: 2px 0;
+      border-bottom: 1px dashed #000;
+    }
+
+    tbody td {
+      padding: 2px 0;
+      vertical-align: top;
+    }
+
+    .col-item { width: 70%; }
+    .col-qty { width: 30%; text-align: right; }
+
+    .item-name {
+      font-weight: 700;
+      font-size: 10px;
+      line-height: 1.15;
+    }
+
+    .footer { margin-top: 6px; font-size: 10px; }
+  </style>
+</head>
+
+<body>
+
+  <!-- HEADER -->
+  <div class="center">
+  <h1>ADDICTION PIZZA KITCHEN</h1>
+  <div class="subtext">CAFE RECEIPT</div>
+</div>
+
+  <div class="dash"></div>
+
+  <!-- ORDER NUMBER + DATE/TIME -->
+  <div class="row">
+    <div class="left"><span class="bold">Order # ${order.orderNumber}</span></div>
+    <div class="right">${dateStr} ${timeStr}</div>
+  </div>
+
+  <!-- ORDER TYPE (CENTER + BOLD) -->
+  <div class="center bold" style="margin: 4px 0 2px 0;">
+    ${order.orderType || 'DELIVERY'}
+  </div>
+
+  <div class="dash"></div>
+
+  <!-- ITEMS START (NO PRICES) -->
+  <table>
+    <thead>
+      <tr>
+        <th class="col-item" style="text-align:left;">Item</th>
+        <th class="col-qty">Qty</th>
+      </tr>
+    </thead>
+
+    <tbody>
+      ${order.orderLines.map((line:any) => `
+      <tr>
+        <td class="col-item">
+          <div class="item-name">${line.nameAtSale}</div>
+        </td>
+        <td class="col-qty">${line.quantity}</td>
+      </tr>
+      `).join('')}
+    </tbody>
+  </table>
+
+  <div class="dash"></div>
+
+  <div class="footer center">
+    <p>Kitchen Copy</p>
+  </div>
+
+</body>
+</html>
+
+
+    `
+
+    // Write content and print
+    printWindow.document.write(receiptHTML)
+    printWindow.document.close()
+    
+    // Wait for content to load, then print
+    printWindow.onload = () => {
+      setTimeout(() => {
+        printWindow.print()
+        // Close window after printing (optional - you can remove this if you want to keep it open)
+        setTimeout(() => {
+          printWindow.close()
+        }, 100)
+      }, 250)
+    }
+  }
+
   const handleStatusUpdate = async (orderId: string, newStatus: OrderStatus, currentStatus?: OrderStatus) => {
     try {
       // If changing from DRAFT to PREPARING, we need to print the receipt
@@ -1235,13 +1428,20 @@ export function OrdersPanel({ userRole = "user" }: OrdersPanelProps) {
       // Update the order status
       const updatedOrder = await updateOrderStatus(orderId, newStatus as ApiOrderStatus)
       
-      // If we should print, print the receipt using the updated order
+      // If we should print, print both receipts using the updated order
       if (shouldPrint) {
         try {
+          // Print customer receipt first
           printReceipt(updatedOrder)
+          
+          // Print cafe receipt after a short delay (so they print one after another)
+          setTimeout(() => {
+            printCafeReceipt(updatedOrder)
+          }, 500)
+          
           toast({
-            title: "Order Started & Receipt Printed",
-            description: `Order ${updatedOrder.orderNumber} is now PREPARING. Receipt has been printed.`,
+            title: "Order Started & Receipts Printed",
+            description: `Order ${updatedOrder.orderNumber} is now PREPARING. Both receipts have been printed.`,
             duration: 3000,
           })
         } catch (printError) {
@@ -1700,6 +1900,62 @@ export function OrdersPanel({ userRole = "user" }: OrdersPanelProps) {
                     </p>
                   </div>
                 )}
+
+                {/* Print Receipts Section */}
+                <div className="pt-4 border-t border-border/30">
+                  <div className="flex flex-col gap-2">
+                    <Button
+                      variant="default"
+                      size="sm"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          const fullOrder = await getOrderById(selectedOrder.id)
+                          printReceipt(fullOrder)
+                          toast({
+                            title: "Receipt Printed",
+                            description: "Customer receipt has been printed",
+                          })
+                        } catch (error) {
+                          console.error("Error printing receipt:", error)
+                          toast({
+                            title: "Error",
+                            description: "Failed to print receipt",
+                            variant: "destructive",
+                          })
+                        }
+                      }}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print Customer Receipt
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          const fullOrder = await getOrderById(selectedOrder.id)
+                          printCafeReceipt(fullOrder)
+                          toast({
+                            title: "Cafe Receipt Printed",
+                            description: "Kitchen receipt has been printed",
+                          })
+                        } catch (error) {
+                          console.error("Error printing cafe receipt:", error)
+                          toast({
+                            title: "Error",
+                            description: "Failed to print cafe receipt",
+                            variant: "destructive",
+                          })
+                        }
+                      }}
+                    >
+                      <Printer className="mr-2 h-4 w-4" />
+                      Print Cafe Receipt
+                    </Button>
+                  </div>
+                </div>
               </div>
             </div>
           )}
